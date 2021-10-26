@@ -3,6 +3,7 @@ package config
 import (
 	"flag"
 	"fmt"
+	"io/ioutil"
 
 	"github.com/go-kit/kit/log/level"
 )
@@ -14,6 +15,8 @@ type Config struct {
 	LogLevel  level.Option
 
 	Server ServerConfig
+
+	BucketConfig []byte
 }
 
 type ServerConfig struct {
@@ -35,6 +38,13 @@ func ParseFlags() (*Config, error) {
 	flag.StringVar(&cfg.Server.ListenInternal, "web.internal.listen", ":8081", "The address on which the internal server listens.")
 	flag.StringVar(&cfg.Server.HealthcheckURL, "web.healthchecks.url", "http://localhost:8080", "The URL against which to run healthchecks.")
 
+	// Object Storage flags.
+	objstoreConfigPath := flag.String(
+		"objstore.config-file",
+		"",
+		"YAML file that contains object store configuration. See format details: https://thanos.io/tip/thanos/storage.md/#configuration.",
+	)
+
 	flag.Parse()
 
 	ll, err := parseLogLevel(logLevelRaw)
@@ -43,6 +53,13 @@ func ParseFlags() (*Config, error) {
 	}
 
 	cfg.LogLevel = ll
+
+	objstoreConfig, err := ioutil.ReadFile(*objstoreConfigPath)
+	if err != nil {
+		return nil, fmt.Errorf("invalid objestore config file path: %w", err)
+	}
+
+	cfg.BucketConfig = objstoreConfig
 
 	return cfg, nil
 }
@@ -58,6 +75,6 @@ func parseLogLevel(logLevelRaw *string) (level.Option, error) {
 	case "debug":
 		return level.AllowDebug(), nil
 	default:
-		return nil, fmt.Errorf("unexpected log level: %s", *logLevelRaw)
+		return nil, fmt.Errorf("unexpected log level: %s", *logLevelRaw) //nolint:goerr113
 	}
 }

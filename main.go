@@ -16,7 +16,8 @@ import (
 	rulesspec "github.com/observatorium/api/rulesbackend/server/v1"
 	"github.com/oklog/run"
 	"github.com/prometheus/client_golang/prometheus"
-	"github.com/thanos-io/objstore"
+	"github.com/prometheus/client_golang/prometheus/collectors"
+	"github.com/thanos-io/objstore/client"
 
 	"github.com/observatorium/rules-objstore/pkg/config"
 	"github.com/observatorium/rules-objstore/pkg/server"
@@ -43,9 +44,10 @@ func main() {
 
 	reg := prometheus.NewRegistry()
 	reg.MustRegister(
-		prometheus.NewGoCollector(),
-		prometheus.NewProcessCollector(prometheus.ProcessCollectorOpts{}),
+		collectors.NewGoCollector(),
+		collectors.NewProcessCollector(collectors.ProcessCollectorOpts{}),
 	)
+
 	healthchecks := healthcheck.NewMetricsHandler(healthcheck.NewHandler(), reg)
 
 	if cfg.Server.HealthcheckURL != "" {
@@ -58,6 +60,11 @@ func main() {
 				time.Second,
 			),
 		)
+	}
+
+	bkt, err := client.NewBucket(logger, cfg.BucketConfig, reg, cfg.Name)
+	if err != nil {
+		stdlog.Fatalf("creating object store bucket client: %v", err)
 	}
 
 	level.Info(logger).Log("msg", "starting rules-objstore")
@@ -81,7 +88,7 @@ func main() {
 		s := http.Server{
 			Addr: cfg.Server.Listen,
 			Handler: rulesspec.Handler(
-				server.NewServer(objstore.NewInMemBucket()),
+				server.NewServer(bkt),
 			),
 		}
 

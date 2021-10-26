@@ -31,29 +31,29 @@ func (s *Server) ListRules(w http.ResponseWriter, r *http.Request, tenant string
 	if err != nil {
 		if s.bucket.IsObjNotFoundErr(err) {
 			w.WriteHeader(http.StatusNotFound)
-			w.Write([]byte("no rules file found"))
+			_, _ = w.Write([]byte("no rules file found"))
 
 			return
 		}
 
 		w.WriteHeader(http.StatusInternalServerError)
-		w.Write([]byte("something wrong happened"))
+		_, _ = w.Write([]byte("something wrong happened"))
 
 		return
 	}
 
 	w.Header().Set("Content-Type", "application/yaml")
-	io.Copy(w, file)
+	_, _ = io.Copy(w, file)
 }
 
 func (s *Server) SetRules(w http.ResponseWriter, r *http.Request, tenant string) {
 	err := s.bucket.Upload(r.Context(), tenant+rulesPath, r.Body)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
-		w.Write([]byte("something wrong happened"))
+		_, _ = w.Write([]byte("something wrong happened"))
 
 		return
 	}
 
-	w.Write([]byte("successfully updated rules file"))
+	_, _ = w.Write([]byte("successfully updated rules file"))
 }
