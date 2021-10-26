@@ -88,7 +88,7 @@ func main() {
 		s := http.Server{
 			Addr: cfg.Server.Listen,
 			Handler: rulesspec.Handler(
-				server.NewServer(bkt),
+				server.NewServer(bkt, log.With(logger, "component", "server")),
 			),
 		}
 
