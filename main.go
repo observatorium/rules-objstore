@@ -17,7 +17,7 @@ import (
 	"github.com/oklog/run"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/collectors"
-	"github.com/thanos-io/objstore/client"
+	"github.com/thanos-io/thanos/pkg/objstore/client"
 
 	"github.com/observatorium/rules-objstore/pkg/config"
 	"github.com/observatorium/rules-objstore/pkg/server"

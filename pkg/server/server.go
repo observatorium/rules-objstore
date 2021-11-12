@@ -7,7 +7,7 @@ import (
 	"github.com/go-kit/kit/log"
 	"github.com/go-kit/kit/log/level"
 	rulesspec "github.com/observatorium/api/rules"
-	"github.com/thanos-io/objstore"
+	"github.com/thanos-io/thanos/pkg/objstore"
 )
 
 const (
