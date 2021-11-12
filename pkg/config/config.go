@@ -26,7 +26,7 @@ type ServerConfig struct {
 }
 
 func ParseFlags() (*Config, error) {
-	cfg := &Config{}
+	cfg := &Config{} //nolint:exhaustivestruct
 
 	// Logger flags.
 	flag.StringVar(&cfg.Name, "debug.name", "rules-objstore", "A name to add as a prefix to log lines.")

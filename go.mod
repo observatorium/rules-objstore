@@ -4,9 +4,9 @@ go 1.16
 
 replace (
 	// TODO: Remove this: https://github.com/thanos-io/thanos/issues/3967.
-	github.com/minio/minio-go/v7 => github.com/bwplotka/minio-go/v7 v7.0.11-0.20210324165441-f9927e5255a6 // nolint:gomoddirectives
+	github.com/minio/minio-go/v7 => github.com/bwplotka/minio-go/v7 v7.0.11-0.20210324165441-f9927e5255a6
 
-	github.com/thanos-io/thanos v0.22.0 => github.com/thanos-io/thanos v0.19.1-0.20211112050938-aa7e9f33aaf0 // nolint:gomoddirectives
+	github.com/thanos-io/thanos v0.22.0 => github.com/thanos-io/thanos v0.19.1-0.20211112050938-aa7e9f33aaf0
 )
 
 require (

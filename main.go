@@ -45,6 +45,7 @@ func main() {
 	reg := prometheus.NewRegistry()
 	reg.MustRegister(
 		collectors.NewGoCollector(),
+		//nolint:exhaustivestruct
 		collectors.NewProcessCollector(collectors.ProcessCollectorOpts{}),
 	)
 

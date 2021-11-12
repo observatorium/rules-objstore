@@ -27,7 +27,7 @@ func NewServer(bucket objstore.Bucket, logger log.Logger) *Server {
 }
 
 // Make sure that Server implements rulesspec.ServerInterface.
-var _ rulesspec.ServerInterface = &Server{}
+var _ rulesspec.ServerInterface = &Server{} //nolint:exhaustivestruct
 
 func (s *Server) ListRules(w http.ResponseWriter, r *http.Request, tenant string) {
 	logger := log.With(s.logger, "handler", "listrules", "tenant", tenant)
