@@ -5,24 +5,11 @@ run:
   deadline: 3m
   tests: true
 
-linters:
-  disable:
-    - exhaustivestruct
-    - gci
-    - testpackage
-    - paralleltest
-
 linters-settings:
   errcheck:
     exclude: .errcheck_excludes
   lll:
-    line-length: 140
+    line-length: 160
   funlen:
-    lines: 110
+    lines: 140
     statements: 60
-  gofumpt:
-    # Select the Go version to target. The default is `1.16`.
-    lang-version: "1.1604"
-    # Choose whether or not to use the extra rules that are disabled
-    # by default
-    extra-rules: true

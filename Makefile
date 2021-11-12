@@ -12,8 +12,10 @@ VCS_BRANCH := $(strip $(shell git rev-parse --abbrev-ref HEAD))
 VCS_REF := $(strip $(shell [ -d .git ] && git rev-parse --short HEAD))
 DOCKER_REPO ?= quay.io/observatorium/rules-objstore
 
-default: rules-objstore
-all: clean lint test rules-objstore
+BIN_NAME ?= rules-objstore
+
+default: $(BIN_NAME)
+all: clean lint test $(BIN_NAME)
 
 .PHONY: deps
 deps: go.mod go.sum
@@ -21,11 +23,11 @@ deps: go.mod go.sum
 	go mod download
 	go mod verify
 
-rules-objstore: deps main.go $(wildcard *.go) $(wildcard */*.go)
+$(BIN_NAME): deps main.go $(wildcard *.go) $(wildcard */*.go)
 	CGO_ENABLED=0 GO111MODULE=on GOPROXY=https://proxy.golang.org go build -a -ldflags '-s -w' -o $@ .
 
 .PHONY: build
-build: rules-objstore
+build: $(BIN_NAME)
 
 .PHONY: format
 format: $(GOLANGCI_LINT)
@@ -48,7 +50,7 @@ test-unit:
 
 .PHONY: clean
 clean:
-	-rm rules-objstore
+	-rm $(BIN_NAME)
 
 .PHONY: container
 container: Dockerfile

@@ -56,7 +56,7 @@ func ParseFlags() (*Config, error) {
 
 	objstoreConfig, err := ioutil.ReadFile(*objstoreConfigPath)
 	if err != nil {
-		return nil, fmt.Errorf("invalid objestore config file path: %w", err)
+		return nil, fmt.Errorf("invalid objstore config file path: %w", err)
 	}
 
 	cfg.BucketConfig = objstoreConfig
