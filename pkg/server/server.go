@@ -6,7 +6,7 @@ import (
 
 	"github.com/go-kit/kit/log"
 	"github.com/go-kit/kit/log/level"
-	rulesspec "github.com/observatorium/api/rulesbackend/server/v1"
+	rulesspec "github.com/observatorium/api/rules"
 	"github.com/thanos-io/objstore"
 )
 
@@ -26,6 +26,7 @@ func NewServer(bucket objstore.Bucket, logger log.Logger) *Server {
 	}
 }
 
+// Make sure that Server implements rulesspec.ServerInterface.
 var _ rulesspec.ServerInterface = &Server{}
 
 func (s *Server) ListRules(w http.ResponseWriter, r *http.Request, tenant string) {
@@ -34,15 +35,12 @@ func (s *Server) ListRules(w http.ResponseWriter, r *http.Request, tenant string
 	file, err := s.bucket.Get(r.Context(), tenant+rulesPath)
 	if err != nil {
 		if s.bucket.IsObjNotFoundErr(err) {
-			w.WriteHeader(http.StatusNotFound)
-			_, _ = w.Write([]byte("no rules file found"))
+			http.Error(w, "rules file not found", http.StatusNotFound)
 
 			return
 		}
 
-		w.WriteHeader(http.StatusInternalServerError)
-		_, _ = w.Write([]byte("something wrong happened"))
-
+		http.Error(w, "reading rules file from bucket", http.StatusInternalServerError)
 		level.Warn(logger).Log("msg", "reading rules file from bucket", "err", err)
 
 		return
@@ -62,9 +60,7 @@ func (s *Server) SetRules(w http.ResponseWriter, r *http.Request, tenant string)
 
 	err := s.bucket.Upload(r.Context(), tenant+rulesPath, r.Body)
 	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		_, _ = w.Write([]byte("something wrong happened"))
-
+		http.Error(w, "uploading rules file to bucket", http.StatusInternalServerError)
 		level.Warn(logger).Log("msg", "uploading rules file to bucket", "err", err)
 
 		return

@@ -13,7 +13,7 @@ import (
 	"github.com/go-kit/kit/log/level"
 	"github.com/metalmatze/signal/healthcheck"
 	"github.com/metalmatze/signal/internalserver"
-	rulesspec "github.com/observatorium/api/rulesbackend/server/v1"
+	rulesspec "github.com/observatorium/api/rules"
 	"github.com/oklog/run"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/collectors"
