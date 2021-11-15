@@ -1,0 +1,48 @@
+name: lint-build
+
+on:
+  push:
+    branches:
+      - main
+    tags:
+  pull_request:
+
+jobs:
+  build-check:
+    runs-on: ubuntu-latest
+    name: Go build
+    steps:
+      - name: Install Go.
+        uses: actions/setup-go@v1
+        with:
+          go-version: 1.16.x
+
+      - name: Checkout code.
+        uses: actions/checkout@v1
+
+      - uses: actions/cache@v1
+        with:
+          path: ~/go/pkg/mod
+          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+
+      - name: Build check.
+        run: make build
+  lint:
+    runs-on: ubuntu-latest
+    name: Linters (Static Analysis) for Go
+    steps:
+      - name: Checkout code.
+        uses: actions/checkout@v2
+
+      - name: Install Go
+        uses: actions/setup-go@v2
+        with:
+          go-version: 1.16.x
+
+      - uses: actions/cache@v1
+        with:
+          path: ~/go/pkg/mod
+          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+
+      - name: Linting & vetting.
+        run: make lint
