@@ -3,6 +3,7 @@ package server
 import (
 	"io"
 	"net/http"
+	"path"
 
 	"github.com/go-kit/kit/log"
 	"github.com/go-kit/kit/log/level"
@@ -32,10 +33,11 @@ var _ rulesspec.ServerInterface = &Server{} //nolint:exhaustivestruct
 func (s *Server) ListRules(w http.ResponseWriter, r *http.Request, tenant string) {
 	logger := log.With(s.logger, "handler", "listrules", "tenant", tenant)
 
-	file, err := s.bucket.Get(r.Context(), tenant+rulesPath)
+	file, err := s.bucket.Get(r.Context(), getRulesFilePath(tenant))
 	if err != nil {
 		if s.bucket.IsObjNotFoundErr(err) {
 			http.Error(w, "rules file not found", http.StatusNotFound)
+			level.Debug(logger).Log("msg", "rules file not found", "path", getRulesFilePath(tenant))
 
 			return
 		}
@@ -58,7 +60,7 @@ func (s *Server) ListRules(w http.ResponseWriter, r *http.Request, tenant string
 func (s *Server) SetRules(w http.ResponseWriter, r *http.Request, tenant string) {
 	logger := log.With(s.logger, "handler", "setrules", "tenant", tenant)
 
-	err := s.bucket.Upload(r.Context(), tenant+rulesPath, r.Body)
+	err := s.bucket.Upload(r.Context(), getRulesFilePath(tenant), r.Body)
 	if err != nil {
 		http.Error(w, "uploading rules file to bucket", http.StatusInternalServerError)
 		level.Warn(logger).Log("msg", "uploading rules file to bucket", "err", err)
@@ -67,4 +69,8 @@ func (s *Server) SetRules(w http.ResponseWriter, r *http.Request, tenant string)
 	}
 
 	_, _ = w.Write([]byte("successfully updated rules file"))
+}
+
+func getRulesFilePath(tenant string) string {
+	return path.Join(tenant, rulesPath)
 }
