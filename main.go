@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	stdlog "log"
 	"net/http"
 	"os"
@@ -23,10 +24,10 @@ import (
 	"github.com/observatorium/rules-objstore/pkg/server"
 )
 
-func main() {
+func runRulesObjstore() error {
 	cfg, err := config.ParseFlags()
 	if err != nil {
-		stdlog.Fatal(err)
+		return fmt.Errorf("parsing config: %w", err)
 	}
 
 	logger := log.NewLogfmtLogger(log.NewSyncWriter(os.Stderr))
@@ -65,7 +66,7 @@ func main() {
 
 	bkt, err := client.NewBucket(logger, cfg.BucketConfig, reg, cfg.Name)
 	if err != nil {
-		stdlog.Fatalf("creating object store bucket client: %v", err)
+		return fmt.Errorf("creating object store bucket client: %w", err)
 	}
 
 	level.Info(logger).Log("msg", "starting rules-objstore")
@@ -127,6 +128,14 @@ func main() {
 	}
 
 	if err := g.Run(); err != nil {
+		return fmt.Errorf("staring run group: %w", err)
+	}
+
+	return nil
+}
+
+func main() {
+	if err := runRulesObjstore(); err != nil {
 		stdlog.Fatal(err)
 	}
 }
