@@ -1,0 +1,21 @@
+run:
+  # default concurrency is a available CPU number
+  concurrency: 4
+  # timeout for analysis, e.g. 30s, 5m, default is 1m
+  deadline: 3m
+  tests: true
+
+linters:
+  disable:
+    - gomoddirectives
+
+linters-settings:
+  errcheck:
+    exclude: .errcheck_excludes
+  gci:
+    local-prefixes: github.com/observatorium/rules-objstore
+  lll:
+    line-length: 160
+  funlen:
+    lines: 140
+    statements: 60
