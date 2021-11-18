@@ -128,7 +128,7 @@ func runRulesObjstore() error {
 	}
 
 	if err := g.Run(); err != nil {
-		return fmt.Errorf("staring run group: %w", err)
+		return fmt.Errorf("starting run group: %w", err)
 	}
 
 	return nil
