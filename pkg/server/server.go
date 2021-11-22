@@ -1,13 +1,16 @@
 package server
 
 import (
+	"bytes"
 	"io"
+	"io/ioutil"
 	"net/http"
 	"path"
 
 	"github.com/go-kit/kit/log"
 	"github.com/go-kit/kit/log/level"
 	rulesspec "github.com/observatorium/api/rules"
+	"github.com/prometheus/prometheus/pkg/rulefmt"
 	"github.com/thanos-io/thanos/pkg/objstore"
 )
 
@@ -60,7 +63,23 @@ func (s *Server) ListRules(w http.ResponseWriter, r *http.Request, tenant string
 func (s *Server) SetRules(w http.ResponseWriter, r *http.Request, tenant string) {
 	logger := log.With(s.logger, "handler", "setrules", "tenant", tenant)
 
-	err := s.bucket.Upload(r.Context(), getRulesFilePath(tenant), r.Body)
+	data, err := ioutil.ReadAll(r.Body)
+	if err != nil {
+		http.Error(w, "reading request body", http.StatusInternalServerError)
+		level.Warn(logger).Log("msg", "reading request body", "err", err)
+
+		return
+	}
+	defer r.Body.Close()
+
+	if _, errs := rulefmt.Parse(data); errs != nil {
+		http.Error(w, "request body failed rule group validation", http.StatusBadRequest)
+		level.Debug(logger).Log("msg", "request body failed rule group validation", "errs", errs)
+
+		return
+	}
+
+	err = s.bucket.Upload(r.Context(), getRulesFilePath(tenant), bytes.NewReader(data))
 	if err != nil {
 		http.Error(w, "uploading rules file to bucket", http.StatusInternalServerError)
 		level.Warn(logger).Log("msg", "uploading rules file to bucket", "err", err)
