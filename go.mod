@@ -12,6 +12,8 @@ replace (
 )
 
 require (
+	github.com/efficientgo/e2e v0.11.2-0.20211027134903-67d538984a47
+	github.com/efficientgo/tools/core v0.0.0-20210731122119-5d4a0645ce9a
 	github.com/go-kit/kit v0.11.0
 	github.com/metalmatze/signal v0.0.0-20210307161603-1c9aa721a97a
 	github.com/observatorium/api v0.1.3-0.20211112102146-7e7baedacb84

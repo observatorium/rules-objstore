@@ -48,6 +48,10 @@ test: build test-unit
 test-unit:
 	CGO_ENABLED=1 GO111MODULE=on go test -v -race -short ./...
 
+.PHONY: test-e2e
+test-e2e: container-test
+	CGO_ENABLED=1 GO111MODULE=on go test -v -race -short --tags integration ./test/e2e
+
 .PHONY: clean
 clean:
 	-rm $(BIN_NAME)
@@ -74,3 +78,17 @@ container-release: container
 	@docker tag $(DOCKER_REPO):$(VCS_BRANCH)-$(BUILD_DATE)-$(VERSION) $(DOCKER_REPO):$(VERSION_TAG)
 	docker push $(DOCKER_REPO):$(VERSION_TAG)
 	docker push $(DOCKER_REPO):latest
+
+.PHONY: container-test
+container-test: # Use 'shortcut' to build test image if on Linux, otherwise full build.
+ifeq ($(OS), linux)
+container-test: build
+	@docker build \
+		-f Dockerfile.e2e-test \
+		-t $(DOCKER_REPO):local_e2e_test .
+else
+container-test:
+	@docker build \
+		-f Dockerfile \
+		-t $(DOCKER_REPO):local_e2e_test .
+endif
