@@ -34,7 +34,7 @@ groups:
     rules:
       - record: trs
         expr: vector(1)
-			- invalid: property`
+      - invalid: property`
 
 func TestMetricsReadAndWrite(t *testing.T) {
 	t.Parallel()
@@ -61,13 +61,13 @@ func TestMetricsReadAndWrite(t *testing.T) {
 
 	ctx := context.Background()
 	tenantA := "tenant_a"
-	// tenantB := "tenant_b"
 
 	t.Run("valid-rules-read-write", func(t *testing.T) {
 		rctx, cancel := context.WithTimeout(context.Background(), time.Second*20)
 		t.Cleanup(cancel)
 
-		// Retrying the first request as minio takes some time to get ready.
+		// Retrying the first request as minio takes some time to get ready, even after readiness check passes.
+		// Details: https://github.com/efficientgo/e2e/issues/11.
 		err = runutil.Retry(time.Second*3, rctx.Done(), func() error {
 			res, err := client.SetRulesWithBody(ctx, tenantA, "application/yaml", strings.NewReader(sampleRules))
 			if err != nil {
