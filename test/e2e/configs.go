@@ -55,7 +55,7 @@ func createObjstoreYAML(
 	err := ioutil.WriteFile(
 		filepath.Join(e.SharedDir(), configSharedDir, "objstore.yaml"),
 		yamlContent,
-		os.FileMode(0755),
+		os.FileMode(0o755),
 	)
 	testutil.Ok(t, err)
 }
