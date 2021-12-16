@@ -15,3 +15,4 @@
 vendor/
 
 rules-objstore
+e2e_*
