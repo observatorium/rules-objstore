@@ -17,6 +17,7 @@ import (
 	"github.com/efficientgo/tools/core/pkg/runutil"
 	"github.com/efficientgo/tools/core/pkg/testutil"
 	rulesspec "github.com/observatorium/api/rules"
+	"github.com/prometheus/prometheus/pkg/rulefmt"
 )
 
 var sampleRulesA = `
@@ -47,6 +48,31 @@ groups:
         expr: job:request_latency_seconds:mean5m{job="second"} > 0.5
         for: 10m`
 
+var allRulesMerged = `groups:
+    - name: tenant_a.test-oidc
+      interval: 5s
+      rules:
+        - record: trs
+          expr: vector(1)
+        - alert: HighRequestLatency
+          expr: job:request_latency_seconds:mean5m{job="myjob"} > 0.5
+          for: 10m
+          labels:
+            severity: page
+          annotations:
+            summary: High request latency
+    - name: tenant_b.test-oidc
+      interval: 5s
+      rules:
+        - record: btrs
+          expr: vector(1)
+          labels:
+            dummy: "yes"
+        - alert: HighRequestLatency
+          expr: job:request_latency_seconds:mean5m{job="second"} > 0.5
+          for: 10m
+`
+
 var invalidRules = `
 groups:
   - name: test-oidc
@@ -56,7 +82,7 @@ groups:
         expr: vector(1)
       - invalid: property`
 
-func TestMetricsReadAndWrite(t *testing.T) {
+func TestRulesReadAndWrite(t *testing.T) {
 	t.Parallel()
 
 	e, err := e2e.NewDockerEnvironment(envReadWriteName)
@@ -117,6 +143,19 @@ func TestMetricsReadAndWrite(t *testing.T) {
 
 		// The rules retrieved should still match the prevoiusly set rules.
 		checkRules(t, ctx, client, tenantA, sampleRulesA)
+	})
+
+	t.Run("all-rules", func(t *testing.T) {
+		res, err := client.ListAllRules(ctx)
+		testutil.Ok(t, err)
+
+		respRules, err := ioutil.ReadAll(res.Body)
+		testutil.Ok(t, err)
+
+		_, errs := rulefmt.Parse(respRules)
+		testutil.Equals(t, 0, len(errs))
+
+		testutil.Equals(t, allRulesMerged, string(respRules))
 	})
 }
 
