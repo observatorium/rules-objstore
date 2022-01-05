@@ -96,9 +96,10 @@ func (s *Server) SetRules(w http.ResponseWriter, r *http.Request, tenant string)
 func (s *Server) ListAllRules(w http.ResponseWriter, r *http.Request) {
 	logger := log.With(s.logger, "handler", "listAllRules")
 
+	//nolint:exhaustivestruct
 	allGroups := &rulefmt.RuleGroups{}
 
-	s.bucket.Iter(r.Context(), rulesBasePath, func(dir string) error {
+	_ = s.bucket.Iter(r.Context(), rulesBasePath, func(dir string) error {
 		tenant := strings.TrimPrefix(dir, rulesBasePath)
 		tenant = strings.TrimSuffix(tenant, "/")
 
