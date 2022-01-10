@@ -99,7 +99,7 @@ func (s *Server) ListAllRules(w http.ResponseWriter, r *http.Request) {
 	//nolint:exhaustivestruct
 	allGroups := &rulefmt.RuleGroups{}
 
-	_ = s.bucket.Iter(r.Context(), rulesBasePath, func(dir string) error {
+	if err := s.bucket.Iter(r.Context(), rulesBasePath, func(dir string) error {
 		tenant := strings.TrimPrefix(dir, rulesBasePath)
 		tenant = strings.TrimSuffix(tenant, "/")
 
@@ -107,7 +107,7 @@ func (s *Server) ListAllRules(w http.ResponseWriter, r *http.Request) {
 		if err != nil {
 			level.Warn(logger).Log("msg", "failed retrieving rules file", "tenant", tenant, "err", err)
 
-			return nil
+			return err
 		}
 		defer file.Close()
 
@@ -115,14 +115,14 @@ func (s *Server) ListAllRules(w http.ResponseWriter, r *http.Request) {
 		if err != nil {
 			level.Warn(logger).Log("msg", "error reading rules file", "tenant", tenant, "err", err)
 
-			return nil
+			return err
 		}
 
 		groups, errs := rulefmt.Parse(data)
 		if errs != nil {
 			level.Warn(logger).Log("msg", "error parsing rules data", "tenant", tenant, "errs", errs)
 
-			return nil
+			return err
 		}
 
 		// Append tenant name as prefix to the Rule group name to avoid duplicate group names across tenants.
@@ -132,7 +132,11 @@ func (s *Server) ListAllRules(w http.ResponseWriter, r *http.Request) {
 		}
 
 		return nil
-	})
+	}); err != nil {
+		http.Error(w, "failed retrieving all rules", http.StatusInternalServerError)
+
+		return
+	}
 
 	w.Header().Set("Content-Type", "application/yaml")
 
