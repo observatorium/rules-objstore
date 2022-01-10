@@ -2,6 +2,7 @@ package server
 
 import (
 	"bytes"
+	"fmt"
 	"io"
 	"io/ioutil"
 	"net/http"
@@ -105,9 +106,9 @@ func (s *Server) ListAllRules(w http.ResponseWriter, r *http.Request) {
 
 		file, err := s.bucket.Get(r.Context(), getRulesFilePath(tenant))
 		if err != nil {
-			level.Warn(logger).Log("msg", "failed retrieving rules file", "tenant", tenant, "err", err)
+			level.Warn(logger).Log("msg", "failed retrieving rules file from object storage", "tenant", tenant, "err", err)
 
-			return err
+			return fmt.Errorf("retrieving rules file from object storage: %w", err)
 		}
 		defer file.Close()
 
@@ -115,14 +116,14 @@ func (s *Server) ListAllRules(w http.ResponseWriter, r *http.Request) {
 		if err != nil {
 			level.Warn(logger).Log("msg", "error reading rules file", "tenant", tenant, "err", err)
 
-			return err
+			return fmt.Errorf("reading rules file: %w", err)
 		}
 
 		groups, errs := rulefmt.Parse(data)
 		if errs != nil {
 			level.Warn(logger).Log("msg", "error parsing rules data", "tenant", tenant, "errs", errs)
 
-			return err
+			return fmt.Errorf("parsing rules file: %w", err)
 		}
 
 		// Append tenant name as prefix to the Rule group name to avoid duplicate group names across tenants.
