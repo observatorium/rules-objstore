@@ -19,7 +19,7 @@ import (
 
 const (
 	rulesBasePath = "metrics/rules/"
-	rulesFileName = "/rules.yaml"
+	rulesFileName = "rules.yaml"
 )
 
 type Server struct {
