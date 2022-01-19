@@ -16,11 +16,12 @@ require (
 	github.com/efficientgo/tools/core v0.0.0-20210731122119-5d4a0645ce9a
 	github.com/go-kit/kit v0.11.0
 	github.com/metalmatze/signal v0.0.0-20210307161603-1c9aa721a97a
-	github.com/observatorium/api v0.1.3-0.20211112102146-7e7baedacb84
+	github.com/observatorium/api v0.1.3-0.20220105112411-f8b0fbf3eaae
 	github.com/oklog/run v1.1.0
 	github.com/prometheus/client_golang v1.11.0
 	github.com/prometheus/prometheus v1.8.2-0.20211101135822-b862218389fc
 	github.com/thanos-io/thanos v0.22.0
+	gopkg.in/yaml.v3 v3.0.0-20210107192922-496545a6307b
 )
 
 require (
@@ -48,6 +49,7 @@ require (
 	github.com/dennwc/varint v1.0.0 // indirect
 	github.com/dimchansky/utfbom v1.1.1 // indirect
 	github.com/edsrzf/mmap-go v1.0.0 // indirect
+	github.com/ghodss/yaml v1.0.0 // indirect
 	github.com/go-chi/chi/v5 v5.0.0 // indirect
 	github.com/go-kit/log v0.2.0 // indirect
 	github.com/go-logfmt/logfmt v0.5.1 // indirect
@@ -105,5 +107,4 @@ require (
 	google.golang.org/protobuf v1.27.1 // indirect
 	gopkg.in/ini.v1 v1.57.0 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
-	gopkg.in/yaml.v3 v3.0.0-20210107192922-496545a6307b // indirect
 )

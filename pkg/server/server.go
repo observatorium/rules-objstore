@@ -2,20 +2,24 @@ package server
 
 import (
 	"bytes"
+	"fmt"
 	"io"
 	"io/ioutil"
 	"net/http"
 	"path"
+	"strings"
 
 	"github.com/go-kit/kit/log"
 	"github.com/go-kit/kit/log/level"
 	rulesspec "github.com/observatorium/api/rules"
 	"github.com/prometheus/prometheus/pkg/rulefmt"
 	"github.com/thanos-io/thanos/pkg/objstore"
+	"gopkg.in/yaml.v3"
 )
 
 const (
-	rulesPath = "/rules.yaml"
+	rulesBasePath = "metrics/rules/"
+	rulesFileName = "rules.yaml"
 )
 
 type Server struct {
@@ -90,6 +94,66 @@ func (s *Server) SetRules(w http.ResponseWriter, r *http.Request, tenant string)
 	_, _ = w.Write([]byte("successfully updated rules file"))
 }
 
+func (s *Server) ListAllRules(w http.ResponseWriter, r *http.Request) {
+	logger := log.With(s.logger, "handler", "listAllRules")
+
+	//nolint:exhaustivestruct
+	allGroups := &rulefmt.RuleGroups{}
+
+	if err := s.bucket.Iter(r.Context(), rulesBasePath, func(dir string) error {
+		tenant := strings.TrimPrefix(dir, rulesBasePath)
+		tenant = strings.TrimSuffix(tenant, "/")
+
+		file, err := s.bucket.Get(r.Context(), getRulesFilePath(tenant))
+		if err != nil {
+			level.Warn(logger).Log("msg", "failed retrieving rules file from object storage", "tenant", tenant, "err", err)
+
+			return fmt.Errorf("retrieving rules file from object storage: %w", err)
+		}
+		defer file.Close()
+
+		data, err := ioutil.ReadAll(file)
+		if err != nil {
+			level.Warn(logger).Log("msg", "error reading rules file", "tenant", tenant, "err", err)
+
+			return fmt.Errorf("reading rules file: %w", err)
+		}
+
+		groups, errs := rulefmt.Parse(data)
+		if errs != nil {
+			level.Warn(logger).Log("msg", "error parsing rules data", "tenant", tenant, "errs", errs)
+
+			return fmt.Errorf("parsing rules file: %w", err)
+		}
+
+		// Append tenant name as prefix to the Rule group name to avoid duplicate group names across tenants.
+		for _, rg := range groups.Groups {
+			rg.Name = tenant + "." + rg.Name
+			allGroups.Groups = append(allGroups.Groups, rg)
+		}
+
+		return nil
+	}); err != nil {
+		http.Error(w, "failed retrieving all rules", http.StatusInternalServerError)
+
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/yaml")
+
+	var buf bytes.Buffer
+	if err := yaml.NewEncoder(&buf).Encode(allGroups); err != nil {
+		http.Error(w, "marshalling rules to yaml", http.StatusInternalServerError)
+		level.Warn(logger).Log("msg", "marshalling rules to yaml", "err", err)
+
+		return
+	}
+
+	if _, err := w.Write(buf.Bytes()); err != nil {
+		level.Warn(logger).Log("msg", "writing rules file to HTTP response", "err", err)
+	}
+}
+
 func getRulesFilePath(tenant string) string {
-	return path.Join(tenant, rulesPath)
+	return path.Join(rulesBasePath, tenant, rulesFileName)
 }
