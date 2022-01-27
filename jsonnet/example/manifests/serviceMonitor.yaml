@@ -1,0 +1,14 @@
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: example-rules-objstore
+  namespace: observatroium
+spec:
+  endpoints:
+  - port: internal
+  selector:
+    matchLabels:
+      app.kubernetes.io/component: rules-storage
+      app.kubernetes.io/instance: example-rules-objstore
+      app.kubernetes.io/name: rules-objstore
+      app.kubernetes.io/version: main-2022-01-19-8650540

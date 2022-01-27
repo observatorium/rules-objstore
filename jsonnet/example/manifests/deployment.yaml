@@ -1,0 +1,71 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app.kubernetes.io/component: rules-storage
+    app.kubernetes.io/instance: example-rules-objstore
+    app.kubernetes.io/name: rules-objstore
+    app.kubernetes.io/version: main-2022-01-19-8650540
+  name: example-rules-objstore
+  namespace: observatroium
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app.kubernetes.io/component: rules-storage
+      app.kubernetes.io/instance: example-rules-objstore
+      app.kubernetes.io/name: rules-objstore
+  strategy:
+    rollingUpdate:
+      maxSurge: 0
+      maxUnavailable: 1
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/component: rules-storage
+        app.kubernetes.io/instance: example-rules-objstore
+        app.kubernetes.io/name: rules-objstore
+        app.kubernetes.io/version: main-2022-01-19-8650540
+    spec:
+      containers:
+      - args:
+        - --debug.name=example-rules-objstore
+        - --web.listen=0.0.0.0:8080
+        - --web.internal.listen=0.0.0.0:8081
+        - --web.healthchecks.url=http://localhost:8080
+        - --log.level=info
+        - --log.format=logfmt
+        - --objstore.config-file=/etc/rules-objstore/objstore.yaml
+        image: quay.io/observatorium/rules-objstore
+        imagePullPolicy: IfNotPresent
+        livenessProbe:
+          failureThreshold: 10
+          httpGet:
+            path: /live
+            port: 8081
+            scheme: HTTP
+          periodSeconds: 30
+        name: rules-objstore
+        ports:
+        - containerPort: 8081
+          name: internal
+        - containerPort: 8080
+          name: public
+        readinessProbe:
+          failureThreshold: 12
+          httpGet:
+            path: /ready
+            port: 8081
+            scheme: HTTP
+          periodSeconds: 5
+        resources: {}
+        volumeMounts:
+        - mountPath: /etc/rules-objstore/objstore.yaml
+          name: objstore
+          readOnly: true
+          subPath: objstore.yaml
+      serviceAccountName: example-rules-objstore
+      volumes:
+      - name: objstore
+        secret:
+          secretName: rules-objectstorage
