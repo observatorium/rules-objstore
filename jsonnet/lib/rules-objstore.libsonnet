@@ -42,6 +42,7 @@ function(params) {
   assert std.isNumber(ro.config.replicas) && ro.config.replicas >= 0 : 'rules-objstore replicas has to be number >= 0',
   assert std.isObject(ro.config.resources),
   assert std.isBoolean(ro.config.serviceMonitor),
+  assert std.isObject(ro.config.objectStorageConfig),
 
   serviceAccount: {
     apiVersion: 'v1',
