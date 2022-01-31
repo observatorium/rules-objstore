@@ -56,6 +56,15 @@ test-e2e: container-test
 clean:
 	-rm $(BIN_NAME)
 
+.PHONY: manifests
+manifests: jsonnet/example/manifests
+
+jsonnet/example/manifests: jsonnet/example/main.jsonnet $(JSONNET) $(GOJSONTOYAML)
+	-rm -rf jsonnet/example/manifests
+	-mkdir jsonnet/example/manifests
+	$(JSONNET) -m jsonnet/example/manifests jsonnet/example/main.jsonnet | xargs -I{} sh -c 'cat {} | $(GOJSONTOYAML) > {}.yaml' -- {}
+	find jsonnet/example/manifests -type f ! -name '*.yaml' -delete
+
 .PHONY: container
 container: Dockerfile
 	@docker build --build-arg BUILD_DATE="$(BUILD_TIMESTAMP)" \
