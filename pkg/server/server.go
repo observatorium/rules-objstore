@@ -34,41 +34,35 @@ type Server struct {
 	rulesConfigured      *prometheus.GaugeVec
 }
 
-func (s *Server) registerServerMetrics(reg *prometheus.Registry) {
-	//nolint:exhaustivestruct
-	s.validations = promauto.With(reg).NewCounterVec(prometheus.CounterOpts{
-		Name: "rules_objstore_validations_total",
-		Help: "Total number of all successful validations for rule files.",
-	}, []string{"tenant"})
-
-	//nolint:exhaustivestruct
-	s.validationFailures = promauto.With(reg).NewCounterVec(prometheus.CounterOpts{
-		Name: "rules_objstore_validation_failures_total",
-		Help: "Total number of all validations for rule files which failed.",
-	}, []string{"tenant"})
-
-	//nolint:exhaustivestruct
-	s.ruleGroupsConfigured = promauto.With(reg).NewGaugeVec(prometheus.GaugeOpts{
-		Name: "rules_objstore_rule_groups_configured",
-		Help: "Number of Prometheus rule groups configured.",
-	}, []string{"tenant"})
-
-	//nolint:exhaustivestruct
-	s.rulesConfigured = promauto.With(reg).NewGaugeVec(prometheus.GaugeOpts{
-		Name: "rules_objstore_rules_configured",
-		Help: "Number of Prometheus rules configured.",
-	}, []string{"tenant"})
-}
-
-func NewServer(bucket objstore.Bucket, logger log.Logger, reg *prometheus.Registry) *Server {
-	//nolint:exhaustivestruct
-	s := &Server{
+func NewServer(bucket objstore.Bucket, logger log.Logger, reg prometheus.Registerer) *Server {
+	return &Server{
 		bucket: bucket,
 		logger: logger,
-	}
-	s.registerServerMetrics(reg)
 
-	return s
+		//nolint:exhaustivestruct
+		validations: promauto.With(reg).NewCounterVec(prometheus.CounterOpts{
+			Name: "rules_objstore_validations_total",
+			Help: "Total number of all successful validations for rule files.",
+		}, []string{"tenant"}),
+
+		//nolint:exhaustivestruct
+		validationFailures: promauto.With(reg).NewCounterVec(prometheus.CounterOpts{
+			Name: "rules_objstore_validation_failures_total",
+			Help: "Total number of all validations for rule files which failed.",
+		}, []string{"tenant"}),
+
+		//nolint:exhaustivestruct
+		ruleGroupsConfigured: promauto.With(reg).NewGaugeVec(prometheus.GaugeOpts{
+			Name: "rules_objstore_rule_groups_configured",
+			Help: "Number of Prometheus rule groups configured.",
+		}, []string{"tenant"}),
+
+		//nolint:exhaustivestruct
+		rulesConfigured: promauto.With(reg).NewGaugeVec(prometheus.GaugeOpts{
+			Name: "rules_objstore_rules_configured",
+			Help: "Number of Prometheus rules configured.",
+		}, []string{"tenant"}),
+	}
 }
 
 // Make sure that Server implements rulesspec.ServerInterface.
