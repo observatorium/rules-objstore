@@ -13,7 +13,6 @@ import (
 	"time"
 
 	"github.com/efficientgo/e2e"
-	e2edb "github.com/efficientgo/e2e/db"
 	"github.com/efficientgo/tools/core/pkg/runutil"
 	"github.com/efficientgo/tools/core/pkg/testutil"
 	rulesspec "github.com/observatorium/api/rules"
@@ -91,12 +90,7 @@ func TestRulesReadAndWrite(t *testing.T) {
 
 	prepareConfigs(t, readWrite, e)
 
-	bucket := "obs_rules_test"
-
-	m := e2edb.NewMinio(e, "rules-minio", bucket)
-	testutil.Ok(t, e2e.StartAndWaitReady(m))
-
-	createObjstoreYAML(t, e, bucket, e2edb.MinioAccessKey, e2edb.MinioSecretKey, m.InternalEndpoint(e2edb.AccessPortName))
+	newMinio(t, e)
 
 	rules, err := newRulesObjstoreService(e)
 	testutil.Ok(t, err)
