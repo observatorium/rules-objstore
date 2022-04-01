@@ -72,7 +72,7 @@ func newMinio(t *testing.T, e e2e.Environment) {
 				// Hacky: Create user that matches ID with host ID to be able to remove .minio.sys details on the start.
 				// Proper solution would be to contribute/create our own minio image which is non root.
 				"useradd -G root -u %v me && mkdir -p %s && chown -R me %s &&"+
-					"curl -sSL --tlsv1.2 -O 'https://raw.githubusercontent.com/minio/kes/master/root.key' -O 'https://raw.githubusercontent.com/minio/kes/master/root.cert' && "+
+					"curl -sSL --tlsv1.3 -O 'https://raw.githubusercontent.com/minio/kes/master/root.key' -O 'https://raw.githubusercontent.com/minio/kes/master/root.cert' && "+
 					"cp root.* /home/me/ && "+
 					"su - me -s /bin/sh -c 'mkdir -p %s && %s /opt/bin/minio server --address :%v --quiet %v'",
 				userID, f.InternalDir(), f.InternalDir(), filepath.Join(f.InternalDir(), bucket), strings.Join(envVars, " "), ports[e2edb.AccessPortName], f.InternalDir()),
