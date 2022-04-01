@@ -35,21 +35,25 @@ type Server struct {
 }
 
 func (s *Server) registerServerMetrics(reg *prometheus.Registry) {
+	//nolint:exhaustivestruct
 	s.validations = promauto.With(reg).NewCounterVec(prometheus.CounterOpts{
 		Name: "rules_objstore_validations_total",
 		Help: "Total number of all successful validations for rule files.",
 	}, []string{"tenant"})
 
+	//nolint:exhaustivestruct
 	s.validationFailures = promauto.With(reg).NewCounterVec(prometheus.CounterOpts{
 		Name: "rules_objstore_validation_failures_total",
 		Help: "Total number of all validations for rule files which failed.",
 	}, []string{"tenant"})
 
+	//nolint:exhaustivestruct
 	s.ruleGroupsConfigured = promauto.With(reg).NewGaugeVec(prometheus.GaugeOpts{
 		Name: "rules_objstore_rule_groups_configured",
 		Help: "Number of Prometheus rule groups configured.",
 	}, []string{"tenant"})
 
+	//nolint:exhaustivestruct
 	s.rulesConfigured = promauto.With(reg).NewGaugeVec(prometheus.GaugeOpts{
 		Name: "rules_objstore_rules_configured",
 		Help: "Number of Prometheus rules configured.",
@@ -57,11 +61,13 @@ func (s *Server) registerServerMetrics(reg *prometheus.Registry) {
 }
 
 func NewServer(bucket objstore.Bucket, logger log.Logger, reg *prometheus.Registry) *Server {
+	//nolint:exhaustivestruct
 	s := &Server{
 		bucket: bucket,
 		logger: logger,
 	}
 	s.registerServerMetrics(reg)
+
 	return s
 }
 
@@ -108,6 +114,7 @@ func (s *Server) SetRules(w http.ResponseWriter, r *http.Request, tenant string)
 	defer r.Body.Close()
 
 	var groups *rulefmt.RuleGroups
+
 	var errs []error
 	if groups, errs = rulefmt.Parse(data); errs != nil {
 		http.Error(w, "request body failed rule group validation", http.StatusBadRequest)
