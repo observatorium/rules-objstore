@@ -18,7 +18,7 @@ const (
 	logLevelDebug = "debug"
 )
 
-func newRulesObjstoreService(e e2e.Environment) (*e2e.InstrumentedRunnable, error) {
+func newRulesObjstoreService(e e2e.Environment) (e2e.InstrumentedRunnable, error) {
 	ports := map[string]int{
 		"http":          8080,
 		"http-internal": 8081,
@@ -32,12 +32,10 @@ func newRulesObjstoreService(e e2e.Environment) (*e2e.InstrumentedRunnable, erro
 		"-log.level":            logLevelDebug,
 	})
 
-	return e2e.NewInstrumentedRunnable(e, "rules_objstore", ports, "http-internal").Init(
-		e2e.StartOptions{
-			Image:     rulesObjstoreImage,
-			Command:   e2e.NewCommandWithoutEntrypoint("rules-objstore", args...),
-			Readiness: e2e.NewHTTPReadinessProbe("http-internal", "/ready", 200, 200),
-			User:      strconv.Itoa(os.Getuid()),
-		},
-	), nil
+	return e2e.NewInstrumentedRunnable(e, "rules_objstore").WithPorts(ports, "http-internal").Init(e2e.StartOptions{
+		Image:     rulesObjstoreImage,
+		Command:   e2e.NewCommandWithoutEntrypoint("rules-objstore", args...),
+		Readiness: e2e.NewHTTPReadinessProbe("http-internal", "/ready", 200, 200),
+		User:      strconv.Itoa(os.Getuid()),
+	}), nil
 }

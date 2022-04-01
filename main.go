@@ -90,7 +90,7 @@ func runRulesObjstore() error {
 		s := http.Server{
 			Addr: cfg.Server.Listen,
 			Handler: rulesspec.Handler(
-				server.NewServer(bkt, log.With(logger, "component", "server")),
+				server.NewServer(bkt, log.With(logger, "component", "server"), reg),
 			),
 		}
 

@@ -12,6 +12,8 @@ import (
 	"github.com/go-kit/kit/log"
 	"github.com/go-kit/kit/log/level"
 	rulesspec "github.com/observatorium/api/rules"
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promauto"
 	"github.com/prometheus/prometheus/pkg/rulefmt"
 	"github.com/thanos-io/thanos/pkg/objstore"
 	"gopkg.in/yaml.v3"
@@ -25,12 +27,41 @@ const (
 type Server struct {
 	bucket objstore.Bucket
 	logger log.Logger
+
+	validations          *prometheus.CounterVec
+	validationFailures   *prometheus.CounterVec
+	ruleGroupsConfigured *prometheus.GaugeVec
+	rulesConfigured      *prometheus.GaugeVec
 }
 
-func NewServer(bucket objstore.Bucket, logger log.Logger) *Server {
+func NewServer(bucket objstore.Bucket, logger log.Logger, reg prometheus.Registerer) *Server {
 	return &Server{
 		bucket: bucket,
 		logger: logger,
+
+		//nolint:exhaustivestruct
+		validations: promauto.With(reg).NewCounterVec(prometheus.CounterOpts{
+			Name: "rules_objstore_validations_total",
+			Help: "Total number of all successful validations for rule files.",
+		}, []string{"tenant"}),
+
+		//nolint:exhaustivestruct
+		validationFailures: promauto.With(reg).NewCounterVec(prometheus.CounterOpts{
+			Name: "rules_objstore_validation_failures_total",
+			Help: "Total number of all validations for rule files which failed.",
+		}, []string{"tenant"}),
+
+		//nolint:exhaustivestruct
+		ruleGroupsConfigured: promauto.With(reg).NewGaugeVec(prometheus.GaugeOpts{
+			Name: "rules_objstore_rule_groups_configured",
+			Help: "Number of Prometheus rule groups configured.",
+		}, []string{"tenant"}),
+
+		//nolint:exhaustivestruct
+		rulesConfigured: promauto.With(reg).NewGaugeVec(prometheus.GaugeOpts{
+			Name: "rules_objstore_rules_configured",
+			Help: "Number of Prometheus rules configured.",
+		}, []string{"tenant"}),
 	}
 }
 
@@ -76,12 +107,26 @@ func (s *Server) SetRules(w http.ResponseWriter, r *http.Request, tenant string)
 	}
 	defer r.Body.Close()
 
-	if _, errs := rulefmt.Parse(data); errs != nil {
+	var groups *rulefmt.RuleGroups
+
+	var errs []error
+	if groups, errs = rulefmt.Parse(data); errs != nil {
 		http.Error(w, "request body failed rule group validation", http.StatusBadRequest)
 		level.Debug(logger).Log("msg", "request body failed rule group validation", "errs", errs)
+		s.validationFailures.WithLabelValues(tenant).Inc()
 
 		return
 	}
+
+	s.validations.WithLabelValues(tenant).Inc()
+	s.ruleGroupsConfigured.WithLabelValues(tenant).Set(float64(len(groups.Groups)))
+
+	rules := 0
+	for _, g := range groups.Groups {
+		rules += len(g.Rules)
+	}
+
+	s.rulesConfigured.WithLabelValues(tenant).Set(float64(rules))
 
 	err = s.bucket.Upload(r.Context(), getRulesFilePath(tenant), bytes.NewReader(data))
 	if err != nil {
