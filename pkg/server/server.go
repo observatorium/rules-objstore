@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net/http"
 	"path"
 	"strings"
@@ -98,7 +97,7 @@ func (s *Server) ListRules(w http.ResponseWriter, r *http.Request, tenant string
 func (s *Server) SetRules(w http.ResponseWriter, r *http.Request, tenant string) {
 	logger := log.With(s.logger, "handler", "setrules", "tenant", tenant)
 
-	data, err := ioutil.ReadAll(r.Body)
+	data, err := io.ReadAll(r.Body)
 	if err != nil {
 		http.Error(w, "reading request body", http.StatusInternalServerError)
 		level.Warn(logger).Log("msg", "reading request body", "err", err)
@@ -157,7 +156,7 @@ func (s *Server) ListAllRules(w http.ResponseWriter, r *http.Request) {
 		}
 		defer file.Close()
 
-		data, err := ioutil.ReadAll(file)
+		data, err := io.ReadAll(file)
 		if err != nil {
 			level.Warn(logger).Log("msg", "error reading rules file", "tenant", tenant, "err", err)
 
@@ -172,10 +171,16 @@ func (s *Server) ListAllRules(w http.ResponseWriter, r *http.Request) {
 		}
 
 		// Append tenant name as prefix to the Rule group name to avoid duplicate group names across tenants.
+		s.ruleGroupsConfigured.WithLabelValues(tenant).Set(float64(len(groups.Groups)))
+
+		rules := 0
 		for _, rg := range groups.Groups {
 			rg.Name = tenant + "." + rg.Name
 			allGroups.Groups = append(allGroups.Groups, rg)
+			rules += len(rg.Rules)
 		}
+
+		s.rulesConfigured.WithLabelValues(tenant).Set(float64(rules))
 
 		return nil
 	}); err != nil {
