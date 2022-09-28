@@ -2,6 +2,7 @@ package server
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -18,9 +19,12 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
+var errUnknownSource = errors.New("Unknown observability signal source for rules")
+
 const (
-	rulesBasePath = "metrics/rules/"
-	rulesFileName = "rules.yaml"
+	logsRulesBasePath    = "logs/rules/"
+	metricsRulesBasePath = "metrics/rules/"
+	rulesFileName        = "rules.yaml"
 )
 
 type Server struct {
@@ -42,39 +46,48 @@ func NewServer(bucket objstore.Bucket, logger log.Logger, reg prometheus.Registe
 		validations: promauto.With(reg).NewCounterVec(prometheus.CounterOpts{
 			Name: "rules_objstore_validations_total",
 			Help: "Total number of all successful validations for rule files.",
-		}, []string{"tenant"}),
+		}, []string{"source", "tenant"}),
 
 		//nolint:exhaustivestruct
 		validationFailures: promauto.With(reg).NewCounterVec(prometheus.CounterOpts{
 			Name: "rules_objstore_validation_failures_total",
 			Help: "Total number of all validations for rule files which failed.",
-		}, []string{"tenant"}),
+		}, []string{"source", "tenant"}),
 
 		//nolint:exhaustivestruct
 		ruleGroupsConfigured: promauto.With(reg).NewGaugeVec(prometheus.GaugeOpts{
 			Name: "rules_objstore_rule_groups_configured",
 			Help: "Number of Prometheus rule groups configured.",
-		}, []string{"tenant"}),
+		}, []string{"source", "tenant"}),
 
 		//nolint:exhaustivestruct
 		rulesConfigured: promauto.With(reg).NewGaugeVec(prometheus.GaugeOpts{
 			Name: "rules_objstore_rules_configured",
 			Help: "Number of Prometheus rules configured.",
-		}, []string{"tenant"}),
+		}, []string{"source", "tenant"}),
 	}
 }
 
 // Make sure that Server implements rulesspec.ServerInterface.
 var _ rulesspec.ServerInterface = &Server{} //nolint:exhaustivestruct
 
-func (s *Server) ListRules(w http.ResponseWriter, r *http.Request, tenant string) {
+func (s *Server) ListRules(w http.ResponseWriter, r *http.Request, source, tenant string) {
 	logger := log.With(s.logger, "handler", "listrules", "tenant", tenant)
 
-	file, err := s.bucket.Get(r.Context(), getRulesFilePath(tenant))
+	rulesPath, err := getRulesFilePath(source, tenant)
+	if err != nil {
+		level.Warn(logger).Log("msg", "failed selecting rules base path from object storage", "source", source, "err", err)
+
+		http.Error(w, "failed selecting rules file path", http.StatusInternalServerError)
+
+		return
+	}
+
+	file, err := s.bucket.Get(r.Context(), rulesPath)
 	if err != nil {
 		if s.bucket.IsObjNotFoundErr(err) {
 			http.Error(w, "rules file not found", http.StatusNotFound)
-			level.Debug(logger).Log("msg", "rules file not found", "path", getRulesFilePath(tenant))
+			level.Debug(logger).Log("msg", "rules file not found", "path", rulesPath)
 
 			return
 		}
@@ -94,7 +107,7 @@ func (s *Server) ListRules(w http.ResponseWriter, r *http.Request, tenant string
 	}
 }
 
-func (s *Server) SetRules(w http.ResponseWriter, r *http.Request, tenant string) {
+func (s *Server) SetRules(w http.ResponseWriter, r *http.Request, source, tenant string) {
 	logger := log.With(s.logger, "handler", "setrules", "tenant", tenant)
 
 	data, err := io.ReadAll(r.Body)
@@ -112,22 +125,31 @@ func (s *Server) SetRules(w http.ResponseWriter, r *http.Request, tenant string)
 	if groups, errs = rulefmt.Parse(data); errs != nil {
 		http.Error(w, "request body failed rule group validation", http.StatusBadRequest)
 		level.Debug(logger).Log("msg", "request body failed rule group validation", "errs", errs)
-		s.validationFailures.WithLabelValues(tenant).Inc()
+		s.validationFailures.WithLabelValues(source, tenant).Inc()
 
 		return
 	}
 
-	s.validations.WithLabelValues(tenant).Inc()
-	s.ruleGroupsConfigured.WithLabelValues(tenant).Set(float64(len(groups.Groups)))
+	s.validations.WithLabelValues(source, tenant).Inc()
+	s.ruleGroupsConfigured.WithLabelValues(source, tenant).Set(float64(len(groups.Groups)))
 
 	rules := 0
 	for _, g := range groups.Groups {
 		rules += len(g.Rules)
 	}
 
-	s.rulesConfigured.WithLabelValues(tenant).Set(float64(rules))
+	s.rulesConfigured.WithLabelValues(source, tenant).Set(float64(rules))
 
-	err = s.bucket.Upload(r.Context(), getRulesFilePath(tenant), bytes.NewReader(data))
+	rulesPath, err := getRulesFilePath(source, tenant)
+	if err != nil {
+		level.Warn(logger).Log("msg", "failed selecting rules base path from object storage", "source", source, "err", err)
+
+		http.Error(w, "failed selecting rules file path", http.StatusInternalServerError)
+
+		return
+	}
+
+	err = s.bucket.Upload(r.Context(), rulesPath, bytes.NewReader(data))
 	if err != nil {
 		http.Error(w, "uploading rules file to bucket", http.StatusInternalServerError)
 		level.Warn(logger).Log("msg", "uploading rules file to bucket", "err", err)
@@ -138,17 +160,33 @@ func (s *Server) SetRules(w http.ResponseWriter, r *http.Request, tenant string)
 	_, _ = w.Write([]byte("successfully updated rules file"))
 }
 
-func (s *Server) ListAllRules(w http.ResponseWriter, r *http.Request) {
+func (s *Server) ListAllRules(w http.ResponseWriter, r *http.Request, source string) {
 	logger := log.With(s.logger, "handler", "listAllRules")
 
 	//nolint:exhaustivestruct
 	allGroups := &rulefmt.RuleGroups{}
 
-	if err := s.bucket.Iter(r.Context(), rulesBasePath, func(dir string) error {
-		tenant := strings.TrimPrefix(dir, rulesBasePath)
+	basePath, err := getBaseRulesFilePath(source)
+	if err != nil {
+		level.Warn(logger).Log("msg", "failed selecting rules base path from object storage", "source", source, "err", err)
+
+		http.Error(w, "failed retrieving all rules", http.StatusInternalServerError)
+
+		return
+	}
+
+	if err := s.bucket.Iter(r.Context(), basePath, func(dir string) error {
+		tenant := strings.TrimPrefix(dir, basePath)
 		tenant = strings.TrimSuffix(tenant, "/")
 
-		file, err := s.bucket.Get(r.Context(), getRulesFilePath(tenant))
+		rulesPath, err := getRulesFilePath(source, tenant)
+		if err != nil {
+			level.Warn(logger).Log("msg", "failed selecting rules base path from object storage", "source", source, "err", err)
+
+			return fmt.Errorf("selecting rules base path from object storage: %w", err)
+		}
+
+		file, err := s.bucket.Get(r.Context(), rulesPath)
 		if err != nil {
 			level.Warn(logger).Log("msg", "failed retrieving rules file from object storage", "tenant", tenant, "err", err)
 
@@ -171,7 +209,7 @@ func (s *Server) ListAllRules(w http.ResponseWriter, r *http.Request) {
 		}
 
 		// Append tenant name as prefix to the Rule group name to avoid duplicate group names across tenants.
-		s.ruleGroupsConfigured.WithLabelValues(tenant).Set(float64(len(groups.Groups)))
+		s.ruleGroupsConfigured.WithLabelValues(source, tenant).Set(float64(len(groups.Groups)))
 
 		rules := 0
 		for _, rg := range groups.Groups {
@@ -180,7 +218,7 @@ func (s *Server) ListAllRules(w http.ResponseWriter, r *http.Request) {
 			rules += len(rg.Rules)
 		}
 
-		s.rulesConfigured.WithLabelValues(tenant).Set(float64(rules))
+		s.rulesConfigured.WithLabelValues(source, tenant).Set(float64(rules))
 
 		return nil
 	}); err != nil {
@@ -204,6 +242,22 @@ func (s *Server) ListAllRules(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func getRulesFilePath(tenant string) string {
-	return path.Join(rulesBasePath, tenant, rulesFileName)
+func getBaseRulesFilePath(source string) (string, error) {
+	switch source {
+	case "logs":
+		return logsRulesBasePath, nil
+	case "metrics":
+		return metricsRulesBasePath, nil
+	default:
+		return "", errUnknownSource
+	}
+}
+
+func getRulesFilePath(source, tenant string) (string, error) {
+	basePath, err := getBaseRulesFilePath(source)
+	if err != nil {
+		return "", err
+	}
+
+	return path.Join(basePath, tenant, rulesFileName), nil
 }

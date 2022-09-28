@@ -109,14 +109,15 @@ func TestRulesReadAndWrite(t *testing.T) {
 	tenantA := "tenant_a"
 	tenantB := "tenant_b"
 
-	t.Run("valid-rules-read-write", func(t *testing.T) {
+	t.Run("valid-metrics-rules-read-write", func(t *testing.T) {
+		source := "metrics"
 		rctx, cancel := context.WithTimeout(context.Background(), time.Second*20)
 		t.Cleanup(cancel)
 
 		// Retrying the first request as minio takes some time to get ready, even after readiness check passes.
 		// Details: https://github.com/efficientgo/e2e/issues/11.
 		testutil.Ok(t, runutil.Retry(time.Second*3, rctx.Done(), func() error {
-			res, err := client.SetRulesWithBody(ctx, tenantA, "application/yaml", strings.NewReader(sampleRulesA))
+			res, err := client.SetRulesWithBody(ctx, source, tenantA, "application/yaml", strings.NewReader(sampleRulesA))
 			if err != nil {
 				return err
 			}
@@ -128,25 +129,76 @@ func TestRulesReadAndWrite(t *testing.T) {
 			return nil
 		}))
 
-		res, err := client.SetRulesWithBody(ctx, tenantB, "application/yaml", strings.NewReader(sampleRulesB))
+		res, err := client.SetRulesWithBody(ctx, source, tenantB, "application/yaml", strings.NewReader(sampleRulesB))
 		testutil.Ok(t, err)
 		testutil.Equals(t, http.StatusOK, res.StatusCode)
 
-		checkRules(t, ctx, client, tenantA, sampleRulesA)
-		checkRules(t, ctx, client, tenantB, sampleRulesB)
+		checkRules(t, ctx, client, source, tenantA, sampleRulesA)
+		checkRules(t, ctx, client, source, tenantB, sampleRulesB)
+	})
+
+	t.Run("valid-logs-rules-read-write", func(t *testing.T) {
+		source := "logs"
+		rctx, cancel := context.WithTimeout(context.Background(), time.Second*20)
+		t.Cleanup(cancel)
+
+		// Retrying the first request as minio takes some time to get ready, even after readiness check passes.
+		// Details: https://github.com/efficientgo/e2e/issues/11.
+		testutil.Ok(t, runutil.Retry(time.Second*3, rctx.Done(), func() error {
+			res, err := client.SetRulesWithBody(ctx, source, tenantA, "application/yaml", strings.NewReader(sampleRulesA))
+			if err != nil {
+				return err
+			}
+
+			if res.StatusCode/100 != 2 {
+				return fmt.Errorf("statuscode expected 200, got %d", res.StatusCode)
+			}
+
+			return nil
+		}))
+
+		res, err := client.SetRulesWithBody(ctx, source, tenantB, "application/yaml", strings.NewReader(sampleRulesB))
+		testutil.Ok(t, err)
+		testutil.Equals(t, http.StatusOK, res.StatusCode)
+
+		checkRules(t, ctx, client, source, tenantA, sampleRulesA)
+		checkRules(t, ctx, client, source, tenantB, sampleRulesB)
 	})
 
 	t.Run("invalid-rules-read-write", func(t *testing.T) {
-		res, err := client.SetRulesWithBody(ctx, tenantA, "application/yaml", strings.NewReader(invalidRules))
+		source := "metrics"
+		res, err := client.SetRulesWithBody(ctx, source, tenantA, "application/yaml", strings.NewReader(invalidRules))
 		testutil.Equals(t, http.StatusBadRequest, res.StatusCode)
 		testutil.Ok(t, err)
 
 		// The rules retrieved should still match the prevoiusly set rules.
-		checkRules(t, ctx, client, tenantA, sampleRulesA)
+		checkRules(t, ctx, client, source, tenantA, sampleRulesA)
 	})
 
-	t.Run("all-rules", func(t *testing.T) {
-		res, err := client.ListAllRules(ctx)
+	t.Run("invalid-source", func(t *testing.T) {
+		source := "non-sense"
+		res, err := client.SetRulesWithBody(ctx, source, tenantA, "application/yaml", strings.NewReader(invalidRules))
+		testutil.Equals(t, http.StatusBadRequest, res.StatusCode)
+		testutil.Ok(t, err)
+	})
+
+	t.Run("all-metrics-rules", func(t *testing.T) {
+		source := "metrics"
+		res, err := client.ListAllRules(ctx, source)
+		testutil.Ok(t, err)
+
+		respRules, err := ioutil.ReadAll(res.Body)
+		testutil.Ok(t, err)
+
+		_, errs := rulefmt.Parse(respRules)
+		testutil.Equals(t, 0, len(errs))
+
+		testutil.Equals(t, allRulesMerged, string(respRules))
+	})
+
+	t.Run("all-logs-rules", func(t *testing.T) {
+		source := "logs"
+		res, err := client.ListAllRules(ctx, source)
 		testutil.Ok(t, err)
 
 		respRules, err := ioutil.ReadAll(res.Body)
@@ -159,8 +211,8 @@ func TestRulesReadAndWrite(t *testing.T) {
 	})
 }
 
-func checkRules(t *testing.T, ctx context.Context, client *rulesspec.Client, tenant, rules string) {
-	resp, err := client.ListRules(ctx, tenant)
+func checkRules(t *testing.T, ctx context.Context, client *rulesspec.Client, source, tenant, rules string) {
+	resp, err := client.ListRules(ctx, source, tenant)
 	testutil.Ok(t, err)
 	testutil.Equals(t, http.StatusOK, resp.StatusCode)
 
