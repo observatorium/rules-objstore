@@ -75,18 +75,57 @@ container: Dockerfile
 		-t $(DOCKER_REPO):$(VCS_BRANCH)-$(BUILD_DATE)-$(VERSION) .
 	@docker tag $(DOCKER_REPO):$(VCS_BRANCH)-$(BUILD_DATE)-$(VERSION) $(DOCKER_REPO):latest
 
-.PHONY: container-push
-container-push: container
-	docker push $(DOCKER_REPO):$(VCS_BRANCH)-$(BUILD_DATE)-$(VERSION)
-	docker push $(DOCKER_REPO):latest
+.PHONY: container-build
+container-build:
+	git update-index --refresh
+	docker buildx build \
+		--platform linux/amd64,linux/arm64 \
+		--cache-to type=local,dest=./.buildxcache/ \
+	    --build-arg BUILD_DATE="$(BUILD_TIMESTAMP)" \
+		--build-arg VERSION="$(VERSION)" \
+		--build-arg VCS_REF="$(VCS_REF)" \
+		--build-arg VCS_BRANCH="$(VCS_BRANCH)" \
+		--build-arg DOCKERFILE_PATH="/Dockerfile" \
+		-t $(DOCKER_REPO):$(VCS_BRANCH)-$(BUILD_DATE)-$(VERSION) \
+		-t $(DOCKER_REPO):latest \
+		.
 
-.PHONY: container-release
-container-release: VERSION_TAG = $(strip $(shell [ -d .git ] && git tag --points-at HEAD))
-container-release: container
+.PHONY: container-build-push
+container-build-push:
+	#git update-index --refresh
+	@docker buildx build \
+		--push \
+		--platform linux/amd64,linux/arm64 \
+		--cache-to type=local,dest=./.buildxcache/ \
+	    --build-arg BUILD_DATE="$(BUILD_TIMESTAMP)" \
+		--build-arg VERSION="$(VERSION)" \
+		--build-arg VCS_REF="$(VCS_REF)" \
+		--build-arg VCS_BRANCH="$(VCS_BRANCH)" \
+		--build-arg DOCKERFILE_PATH="/Dockerfile" \
+		-t $(DOCKER_REPO):$(VCS_BRANCH)-$(BUILD_DATE)-$(VERSION) \
+		-t $(DOCKER_REPO):latest \
+		.
+
+.PHONY: conditional-container-build-push
+conditional-container-build-push:
+	build/conditional-container-push.sh $(DOCKER_REPO):$(VCS_BRANCH)-$(BUILD_DATE)-$(VERSION)
+
+.PHONY: container-release-build-push
+container-release-build-push: VERSION_TAG = $(strip $(shell [ -d .git ] && git tag --points-at HEAD))
+container-release-build-push: container-build-push
 	# https://git-scm.com/docs/git-tag#Documentation/git-tag.txt---points-atltobjectgt
-	@docker tag $(DOCKER_REPO):$(VCS_BRANCH)-$(BUILD_DATE)-$(VERSION) $(DOCKER_REPO):$(VERSION_TAG)
-	docker push $(DOCKER_REPO):$(VERSION_TAG)
-	docker push $(DOCKER_REPO):latest
+	@docker buildx build \
+		--push \
+		--platform linux/amd64,linux/arm64 \
+		--cache-from type=local,src=./.buildxcache/ \
+	    --build-arg BUILD_DATE="$(BUILD_TIMESTAMP)" \
+		--build-arg VERSION="$(VERSION)" \
+		--build-arg VCS_REF="$(VCS_REF)" \
+		--build-arg VCS_BRANCH="$(VCS_BRANCH)" \
+		--build-arg DOCKERFILE_PATH="/Dockerfile" \
+		-t $(DOCKER_REPO):$(VERSION_TAG) \
+		-t $(DOCKER_REPO):latest \
+		.
 
 .PHONY: container-test
 container-test: # Use 'shortcut' to build test image if on Linux, otherwise full build.
