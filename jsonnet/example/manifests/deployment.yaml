@@ -27,6 +27,18 @@ spec:
         app.kubernetes.io/name: rules-objstore
         app.kubernetes.io/version: main-2022-01-19-8650540
     spec:
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - podAffinityTerm:
+              labelSelector:
+                matchExpressions:
+                - key: app.kubernetes.io/name
+                  operator: In
+                  values:
+                  - rules-objstore
+              topologyKey: kubernetes.io/hostname
+            weight: 100
       containers:
       - args:
         - --debug.name=example-rules-objstore
