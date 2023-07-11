@@ -95,6 +95,29 @@ function(params) {
       template: {
         metadata: { labels: ro.config.commonLabels },
         spec: {
+            affinity: {
+              podAntiAffinity: {
+                preferredDuringSchedulingIgnoredDuringExecution: [
+                  {
+                    weight: 100,
+                    podAffinityTerm: {
+                      labelSelector: {
+                        matchExpressions: [
+                          {
+                            key: 'app.kubernetes.io/name',
+                            operator: 'In',
+                            values: [
+                              'rules-objstore',
+                            ],
+                          },
+                        ],
+                      },
+                      topologyKey: 'kubernetes.io/hostname',
+                    },
+                  },
+                ],
+              },
+            },
           serviceAccountName: ro.serviceAccount.metadata.name,
           containers: [
             {
