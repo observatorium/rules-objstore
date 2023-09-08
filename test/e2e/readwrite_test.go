@@ -1,6 +1,3 @@
-//go:build integration
-// +build integration
-
 package e2e
 
 import (
@@ -82,6 +79,9 @@ groups:
         expr: vector(1)
       - invalid: property`
 
+var emptyRules = `
+groups: []`
+
 func TestRulesReadAndWrite(t *testing.T) {
 	t.Parallel()
 
@@ -143,6 +143,14 @@ func TestRulesReadAndWrite(t *testing.T) {
 
 		// The rules retrieved should still match the prevoiusly set rules.
 		checkRules(t, ctx, client, tenantA, sampleRulesA)
+	})
+
+	t.Run("empty-rules-read-write", func(t *testing.T) {
+		res, err := client.SetRulesWithBody(ctx, tenantA, "application/yaml", strings.NewReader(emptyRules))
+		testutil.Equals(t, http.StatusOK, res.StatusCode)
+		testutil.Ok(t, err)
+
+		checkRules(t, ctx, client, tenantA, emptyRules)
 	})
 
 	t.Run("all-rules", func(t *testing.T) {
