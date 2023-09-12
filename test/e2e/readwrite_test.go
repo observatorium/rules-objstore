@@ -85,6 +85,8 @@ groups:
 var emptyRules = `
 groups: []`
 
+var nilRules = ``
+
 func TestRulesReadAndWrite(t *testing.T) {
 	t.Parallel()
 
@@ -154,6 +156,14 @@ func TestRulesReadAndWrite(t *testing.T) {
 		testutil.Ok(t, err)
 
 		checkRules(t, ctx, client, tenantA, emptyRules)
+	})
+
+	t.Run("nil-rules-read-write", func(t *testing.T) {
+		res, err := client.SetRulesWithBody(ctx, tenantA, "application/yaml", strings.NewReader(nilRules))
+		testutil.Equals(t, http.StatusOK, res.StatusCode)
+		testutil.Ok(t, err)
+
+		checkRules(t, ctx, client, tenantA, nilRules)
 	})
 
 	t.Run("all-rules", func(t *testing.T) {
